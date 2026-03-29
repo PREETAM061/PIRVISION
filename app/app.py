@@ -1,8 +1,6 @@
 # app/app.py
 import streamlit as st
-import joblib
-import json
-import os
+from utils.predict import load_artifacts
 
 # ── Page config ─────────────────────────────────────────────
 st.set_page_config(
@@ -11,77 +9,82 @@ st.set_page_config(
     layout="wide"
 )
 
-# ── Path resolution ─────────────────────────────────────────
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELS_DIR = os.path.join(ROOT_DIR, "models")
-
-# ── Load models ─────────────────────────────────────────────
+# ── Load artifacts (MODEL + SCALER + SUMMARY) ───────────────
 @st.cache_resource
-def load_models():
-    required_files = [
-        "best_xgb_model.pkl",
-        "feature_scaler.pkl",
-        "feature_names.json",
-        "label_mapping.json"
-    ]
+def get_artifacts():
+    return load_artifacts()
 
-    missing = [f for f in required_files if not os.path.exists(os.path.join(MODELS_DIR, f))]
+art = get_artifacts()
 
-    if missing:
-        st.error(f"❌ Missing files: {missing}")
-        st.error(f"Expected in: {MODELS_DIR}")
-        st.stop()
-
-    model = joblib.load(os.path.join(MODELS_DIR, "best_xgb_model.pkl"))
-    scaler = joblib.load(os.path.join(MODELS_DIR, "feature_scaler.pkl"))
-
-    with open(os.path.join(MODELS_DIR, "feature_names.json")) as f:
-        feature_names = json.load(f)
-
-    with open(os.path.join(MODELS_DIR, "label_mapping.json")) as f:
-        raw = json.load(f)
-        label_map = {int(k): v for k, v in raw["decode"].items()}
-
-    return model, scaler, feature_names, label_map
-
-
-# ── Load into session ───────────────────────────────────────
-model, scaler, feature_names, label_map = load_models()
-
-st.session_state["model"] = model
-st.session_state["scaler"] = scaler
-st.session_state["feature_names"] = feature_names
-st.session_state["label_map"] = label_map
+# ── Store in session (for all pages) ────────────────────────
+st.session_state["model"] = art.model
+st.session_state["scaler"] = art.scaler
+st.session_state["feature_names"] = art.feature_names
+st.session_state["label_map"] = art.label_mapping
+st.session_state["summary"] = art.summary
 
 # ── Sidebar ────────────────────────────────────────────────
 with st.sidebar:
     st.title("🏢 PIRVision")
     st.caption("Smart Occupancy Detection")
 
-    model_name = type(model).__name__
+    model_name = type(art.model).__name__
+
     if model_name == "XGBClassifier":
         st.success(f"✅ Model: {model_name}")
     else:
         st.warning(f"⚠️ Model: {model_name}")
 
-    st.write(f"Features: {len(feature_names)}")
-    st.write(f"Classes: {list(label_map.values())}")
+    st.write(f"Features: {len(art.feature_names)}")
+    st.write(f"Classes: {list(art.label_mapping.values())}")
 
-# ── Main UI ────────────────────────────────────────────────
+# ── MAIN TITLE ─────────────────────────────────────────────
 st.title("🏢 PIRVision Smart Occupancy System")
-st.subheader("AI-based real-time occupancy detection")
+st.subheader("AI-powered real-time building intelligence")
 
+# ── DESCRIPTION ────────────────────────────────────────────
 st.markdown("""
-- 🟢 Vacancy → All systems OFF  
-- 🔵 Stationary → Eco Mode  
-- 🔴 Motion → Full Power  
+PIRVision uses 55-channel PIR sensor data and machine learning to detect occupancy states:
+
+- 🟢 **Vacancy** → Systems OFF  
+- 🔵 **Stationary** → Eco Mode  
+- 🔴 **Motion** → Full Power  
 """)
 
-# KPI
-c1, c2, c3 = st.columns(3)
-c1.metric("Sensors", "55")
-c2.metric("Model", "XGBoost")
-c3.metric("Status", "Active")
+# ── KPI DASHBOARD (REAL DATA) ──────────────────────────────
+summary = art.summary or {}
+energy = summary.get("energy_savings", {})
+
+best_model = summary.get("best_baseline_model", type(art.model).__name__)
+f1_score = summary.get("tuned_xgb_f1", 0.0) * 100
+annual_savings = energy.get("annual_savings_USD", 0.0)
+annual_co2 = energy.get("annual_CO2_saved_kg", 0.0)
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Best Model", best_model)
+col2.metric("F1 Score", f"{f1_score:.1f}%")
+col3.metric("Annual Savings", f"${annual_savings:,.0f}")
+col4.metric("CO₂ Saved / year", f"{annual_co2:,.0f} kg")
+
+# ── EXTRA INFO ─────────────────────────────────────────────
+st.divider()
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### What this system does")
+    st.write(
+        "Detects occupancy using PIR sensors and AI, enabling smart control of "
+        "HVAC, lighting, and building systems."
+    )
+
+with col2:
+    st.markdown("### Real-world impact")
+    st.write(
+        "Reduces energy waste, lowers carbon emissions, and improves building efficiency."
+    )
 
 st.divider()
-st.info("Go to prediction page to test real model.")
+
+st.info("👉 Use sidebar pages for live prediction, heatmaps, and analytics.")
