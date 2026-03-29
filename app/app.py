@@ -83,8 +83,8 @@ def main():
         )
 
     st.markdown("---")
-    st.markdown("### Navigation")
-    st.write("Use the left sidebar to open each page:")
+    st.markdown("### Features")
+    
 
     pages = [
         ("0_Live_Feed", "Live building intelligence feed"),
