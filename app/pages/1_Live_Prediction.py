@@ -62,6 +62,10 @@ def _init_live_state():
     # FIX 2: persist last manual prediction result across reruns
     if "last_manual_result" not in st.session_state:
         st.session_state.last_manual_result = None
+    if "last_manual_timestamp" not in st.session_state:
+        st.session_state.last_manual_timestamp = None
+    if "last_manual_sim_class" not in st.session_state:
+        st.session_state.last_manual_sim_class = None
 
 
 def _state_color(state: str) -> str:
@@ -320,13 +324,26 @@ def main():
     sim_class, noise, temp_f, run_btn = _render_static_section()
 
     # FIX 2: store result in session_state so it persists across st.rerun() calls
+    # Auto-clear stale result if user changed sim_class since last run
+    if (
+        st.session_state.last_manual_sim_class is not None
+        and st.session_state.last_manual_sim_class != sim_class
+        and sim_class != "Random"
+    ):
+        st.session_state.last_manual_result = None
+        st.session_state.last_manual_timestamp = None
+        st.session_state.last_manual_sim_class = None
+
     if run_btn:
         result = _run_single_prediction(sim_class, noise, temp_f)
         st.session_state.last_manual_result = result
+        st.session_state.last_manual_timestamp = get_timestamp()
+        st.session_state.last_manual_sim_class = sim_class
 
     # Always render the last manual result if one exists (survives live loop reruns)
     if st.session_state.last_manual_result is not None:
-        st.markdown("---")
+        ts = st.session_state.last_manual_timestamp or ""
+        st.markdown(f"---\n*Manual prediction run at {ts} — click **Run Prediction** to refresh*")
         _render_prediction_results(*st.session_state.last_manual_result)
     elif not run_btn:
         st.info("Configure the sidebar and click **Run Prediction** to start.")
