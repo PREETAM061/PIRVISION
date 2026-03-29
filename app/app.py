@@ -97,16 +97,16 @@ def main():
 
     st.markdown("---")
     st.markdown("### Key Features")
-    st.write(
-        "Real-time occupancy detection"
-        "55-channel PIR sensor input"
-        "AI-based classification"
-        "High accuracy prediction"
-        "Privacy-safe (no camera)"
-        "Low-light operation"
-        "Energy-saving automation support"
-        "Live data visualization"
-    )
+    st.markdown("""
+    - Real-time occupancy detection
+    - 55-channel PIR sensor input
+    - AI-based classification
+    - High accuracy prediction
+    - Privacy-safe (no camera)
+    - Low-light operation
+    - Energy-saving automation support
+    - Live data visualization
+    """)
 
 
 if __name__ == "__main__":
