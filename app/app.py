@@ -83,23 +83,13 @@ def main():
         )
 
     st.markdown("---")
-    st.markdown("### Features")
+    st.markdown("### Navigation")
     
 
     pages = [
         ("0_Live_Feed", "Live building intelligence feed"),
         ("1_Live_Prediction", "Real-time occupancy prediction simulation"),
         ("2_Room_Heatmap", "Floor plan room occupancy heatmap"),
-        ("3_Occupancy_Timeline", "Weekly occupancy timeline and AI tips"),
-        ("4_ROI_Dashboard", "Financial ROI and savings dashboard"),
-        ("5_Carbon_Tracker", "Real-time carbon emissions tracker"),
-        ("6_Green_Scorecard", "LEED-style green building scorecard"),
-        ("7_CO2_Visualizer", "CO₂ impact in human terms"),
-        ("8_Sustainability_Goals", "Annual sustainability goals tracker"),
-        ("9_ESG_Dashboard", "ESG performance reporting dashboard"),
-        ("10_Model_Leaderboard", "Model leaderboard and metrics"),
-        ("11_SHAP_Explainability", "AI explainability with SHAP"),
-        ("12_Report_Generator", "PDF report generator"),
     ]
 
     for name, desc in pages:
