@@ -87,13 +87,26 @@ def main():
     
 
     pages = [
-        ("0_Live_Feed", "Live building intelligence feed"),
-        ("1_Live_Prediction", "Real-time occupancy prediction simulation"),
-        ("2_Room_Heatmap", "Floor plan room occupancy heatmap"),
+        ("1 - Live Feed", "Live building intelligence feed"),
+        ("2 - Live Prediction", "Real-time occupancy prediction simulation"),
+        ("3 - Room Heatmap", "Floor plan room occupancy heatmap"),
     ]
 
     for name, desc in pages:
         st.markdown(f"- **{name}**: {desc}")
+
+    st.markdown("---")
+    st.markdown("### Key Features")
+    st.write(
+        "Real-time occupancy detection"
+        "55-channel PIR sensor input"
+        "AI-based classification"
+        "High accuracy prediction"
+        "Privacy-safe (no camera)"
+        "Low-light operation"
+        "Energy-saving automation support"
+        "Live data visualization"
+    )
 
 
 if __name__ == "__main__":
