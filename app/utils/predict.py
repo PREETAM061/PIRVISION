@@ -56,9 +56,11 @@ def _load_json(path, default):
 
 def _load_model(path, n_features):
     try:
-        return joblib.load(path)
-    except:
-        print("⚠️ Using DummyModel (model file missing)")
+        model = joblib.load(path)
+        print(f"✅ Loaded model: {type(model).__name__}")
+        return model
+    except Exception as e:
+        print(f"⚠️ Model load failed ({e}). Using DummyModel.")
         return DummyModel(n_features)
 
 
