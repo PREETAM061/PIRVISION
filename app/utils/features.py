@@ -49,83 +49,48 @@ def make_features_from_array(
     return pd.DataFrame([f]).reindex(columns=feature_names, fill_value=0.0)
 
 
-# ── HOW THE SIMULATION WORKS ─────────────────────────────────────
-#
-# Real PIRvision dataset (UCI ID 1101): 55 sensor channels.
-# Sensors output a baseline of ~9 500 counts at idle.
-# Occupancy events create sharp spikes on individual sensor channels.
-#
-# The key discriminating feature in RAW space is pir_mean:
-#
-#   Vacancy    →  no spikes   → pir_mean ≈  9 500–11 000
-#   Stationary →  1–2 spikes  → pir_mean ≈ 11 000–20 000
-#   Motion     →  8–18 spikes → pir_mean ≈ 20 000–80 000+
-#
-# SimulationModel in predict.py reads raw pir_mean (feature index 0) after
-# inverse-transforming from scaled space, and applies thresholds at 12 000
-# and 18 000 — well within those bands — so classification is always correct
-# regardless of other feature artefacts introduced by the signal generator.
-#
-# The noise slider adds realistic sensor noise to the baseline only; it does
-# NOT change spike heights or counts, so the simulated class label is always
-# preserved even at maximum noise.
-# ─────────────────────────────────────────────────────────────────
-
-_PIR_BASELINE   = 9_500.0    # idle sensor count level (from scaler pir_min mean)
+# Real PIRvision dataset (UCI ID 1101): 55 sensors with baseline ~9500 counts.
+# Occupancy creates spikes on individual sensors (up to ~262,000 counts).
+# The scaler was fit on this real scale. Correct ranges derived from scaler params:
+#   pir_min  mean=8,561  → sensors idle at ~8,500-10,000
+#   pir_max  mean=263,028 → peak spikes up to ~262,000
+#   pir_median mean=10,395 → most sensors stay near baseline even during motion
+_PIR_BASELINE = 9_500.0   # idle sensor count level
 
 
 def simulate_pir(sim_class: str, noise: int, n: int = 55) -> np.ndarray:
-    """
-    Simulate 55-channel PIR sensor readings on the correct dataset scale.
+    """Simulate PIR readings on the correct real-dataset scale.
 
-    All three classes share a flat baseline of ~9 500 counts.  Occupancy
-    events add sharp spikes on a subset of channels:
-
-        Vacancy    – no spikes  →  pir_mean ≈  9 500–11 000
-        Stationary – 1–2 spikes →  pir_mean ≈ 11 000–20 000  (threshold = 12 000)
-        Motion     – 8–18 spikes → pir_mean ≈ 20 000–80 000+ (threshold = 18 000)
-
-    These bands are chosen so that SimulationModel's thresholds (12 000 / 18 000)
-    sit well inside each class's range, making classification robust to noise.
-
-    The noise slider (0–50) adds only small baseline jitter (±max(noise×20, 30)
-    counts) and does NOT affect spike structure, so the simulated class label
-    is always preserved at any noise level.
+    Real sensors output ~9,500 counts at baseline.  Occupancy adds spikes on
+    a subset of sensors.  Old code used mean=2/40/180 which is orders-of-
+    magnitude wrong → all three classes produced identical z-scores after
+    StandardScaler transform → model always predicted the same class.
     """
     np.random.seed(None)
-    noise     = max(noise, 0)
-    noise_std = max(noise * 20, 30)          # baseline jitter only
-
-    # Flat baseline with per-channel noise
-    baseline = np.ones(n) * _PIR_BASELINE + np.random.normal(0, noise_std, n)
+    noise = max(noise, 0)
+    noise_counts = max(noise * 50, 100)   # noise slider → real-unit std-dev
 
     if sim_class == "Vacancy":
-        # No spikes — pir_mean stays well below 12 000 threshold
-        return np.clip(baseline, 7_000, 12_000).astype(float)
+        # No occupancy: all 55 sensors stay near idle baseline, no spikes.
+        pir = np.ones(n) * _PIR_BASELINE + np.random.normal(0, noise_counts, n)
+        return np.clip(pir, 7_000, 12_000)
 
     if sim_class == "Stationary":
-        # 1–2 moderate spikes → pir_mean lands between 12 000 and 18 000
-        pir     = baseline.copy()
-        n_spikes = np.random.randint(1, 3)
-        idx      = np.random.choice(n, n_spikes, replace=False)
-        # Spike heights chosen so mean rises into [12 000, 18 000]:
-        # each spike adds ~(target_mean - baseline) * n / n_spikes
-        # target pir_mean ≈ 14 500  →  spike_height = (14 500 - 9 500) * 55 / 1.5 ≈ 183 000
-        # Use a range that reliably lands in [12 000, 18 000] band
-        for i in idx:
-            pir[i] += np.random.uniform(150_000, 200_000)
-        return np.clip(pir, 7_000, 270_000).astype(float)
+        # 1 person sitting still: 2-5 sensors pick up a moderate heat spike.
+        pir = np.ones(n) * _PIR_BASELINE + np.random.normal(0, noise_counts, n)
+        n_spikes = np.random.randint(2, 6)
+        idx = np.random.choice(n, n_spikes, replace=False)
+        pir[idx] += np.random.uniform(15_000, 70_000, n_spikes)
+        return np.clip(pir, 7_000, 200_000)
 
     if sim_class == "Motion":
-        # 8–18 large spikes → pir_mean comfortably above 18 000 threshold
-        pir      = baseline.copy()
-        n_spikes = np.random.randint(8, 18)
-        idx      = np.random.choice(n, n_spikes, replace=False)
-        for i in idx:
-            pir[i] += np.random.uniform(100_000, 260_000)
-        return np.clip(pir, 7_000, 270_000).astype(float)
+        # Active movement: 10-30 sensors spiked to high counts.
+        pir = np.ones(n) * _PIR_BASELINE + np.random.normal(0, noise_counts * 2, n)
+        n_spikes = np.random.randint(10, 30)
+        idx = np.random.choice(n, n_spikes, replace=False)
+        pir[idx] += np.random.uniform(80_000, 260_000, n_spikes)
+        return np.clip(pir, 7_000, 270_000)
 
-    # "Random" or unknown class
     return simulate_pir(
         np.random.choice(["Vacancy", "Stationary", "Motion"]), noise, n
     )
