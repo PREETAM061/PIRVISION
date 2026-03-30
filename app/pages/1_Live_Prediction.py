@@ -92,7 +92,7 @@ def _render_sidebar():
         else:
             temp_f = st.slider(
                 "Temperature (°F)",
-                min_value=84, max_value=89,
+                min_value=32, max_value=89,
                 value=87,
                 help="Real dataset: Vacancy≈87°F, Stationary≈86°F. "
                      "Keep in this range for accurate predictions."
